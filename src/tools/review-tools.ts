@@ -2,60 +2,60 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { WebSocketRelay } from '../websocket-relay.js';
 
-function toText(result: unknown): string {
-  return JSON.stringify(result, null, 2);
+function errResponse(msg: string) {
+  return { content: [{ type: 'text' as const, text: `Error: ${msg}` }], isError: true };
 }
 
 export function registerReviewTools(server: McpServer, relay: WebSocketRelay): void {
   server.registerTool(
-    'move_loupe',
+    'select_image',
     {
       description:
-        'Move the review loupe to a specific 3D point in the scene. ' +
-        'The loupe is a magnification/inspection tool used in dental review workflows.',
+        'Select a NIRI image by ID via pluginsSyncStore.setImageSelection. ' +
+        'Optionally specify rotation degrees or rotation by quarters.',
       inputSchema: z.object({
-        position: z
-          .object({ x: z.number(), y: z.number(), z: z.number() })
-          .describe('3D world-space position to move the loupe to'),
-        width: z.number().optional().describe('Width of the loupe in pixels'),
-        height: z.number().optional().describe('Height of the loupe in pixels'),
-        tolerance: z.number().optional().describe('Positioning tolerance'),
+        imageId: z.number().int().describe('Numeric ID of the image to select'),
+        rotationDegrees: z.number().optional().describe('Rotation in degrees'),
+        rotationByQuarters: z.number().int().optional().describe('Rotation by quarter turns (0-3)'),
       }),
     },
-    async ({ position, width, height, tolerance }) => {
-      const response = await relay.execute('moveLoupeToPoint', { position, width, height, tolerance });
-      if (response.error) return { content: [{ type: 'text', text: `Error: ${response.error}` }], isError: true };
-      return { content: [{ type: 'text', text: toText(response.result) }] };
+    async ({ imageId, rotationDegrees, rotationByQuarters }) => {
+      const args: unknown[] = [imageId];
+      if (rotationDegrees !== undefined) args.push(rotationDegrees);
+      if (rotationByQuarters !== undefined) args.push(rotationByQuarters);
+      const r = await relay.execute('call_store_action', {
+        store: 'pluginsSyncStore',
+        action: 'setImageSelection',
+        args,
+      });
+      if (r.error) return errResponse(r.error);
+      return { content: [{ type: 'text', text: `Image ${imageId} selected` }] };
+    },
+  );
+
+  server.registerTool(
+    'move_loupe',
+    {
+      description: 'UNSUPPORTED in v1. Direct loupe movement requires a stateful engine intent not yet exposed.',
+      inputSchema: z.object({
+        position: z.object({ x: z.number(), y: z.number(), z: z.number() }),
+      }),
+    },
+    async () => {
+      return { content: [{ type: 'text', text: 'move_loupe is not supported in this version. Use select_image for review tool interaction.' }], isError: true };
     },
   );
 
   server.registerTool(
     'highlight_loupe',
     {
-      description: 'Highlight or un-highlight the review loupe to draw attention to it.',
+      description: 'UNSUPPORTED in v1. Direct loupe highlight requires a stateful engine intent not yet exposed.',
       inputSchema: z.object({
-        isHighlight: z.boolean().describe('true to highlight the loupe, false to remove highlight'),
+        isHighlight: z.boolean(),
       }),
     },
-    async ({ isHighlight }) => {
-      const response = await relay.execute('highLightLoupe', { isHighlight });
-      if (response.error) return { content: [{ type: 'text', text: `Error: ${response.error}` }], isError: true };
-      return { content: [{ type: 'text', text: toText(response.result) }] };
-    },
-  );
-
-  server.registerTool(
-    'select_image',
-    {
-      description: 'Select a specific NIRI (Near Infrared) image by its numeric ID in the review tool.',
-      inputSchema: z.object({
-        imageId: z.number().int().describe('Numeric ID of the image to select'),
-      }),
-    },
-    async ({ imageId }) => {
-      const response = await relay.execute('selectImageById', { imageId });
-      if (response.error) return { content: [{ type: 'text', text: `Error: ${response.error}` }], isError: true };
-      return { content: [{ type: 'text', text: toText(response.result) }] };
+    async () => {
+      return { content: [{ type: 'text', text: 'highlight_loupe is not supported in this version. Use select_image for review tool interaction.' }], isError: true };
     },
   );
 }

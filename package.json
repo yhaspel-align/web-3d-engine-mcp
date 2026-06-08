@@ -1,7 +1,7 @@
 {
   "name": "web-3d-engine-mcp",
-  "version": "1.0.0",
-  "description": "MCP server for natural-language control of the web-3d-engine via IThreeObjectsService",
+  "version": "2.0.0",
+  "description": "MCP server for controlling the web-3d-engine via exposed stores and dispatch",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -13,11 +13,12 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.10.2",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "ws": "^8.18.0",
     "zod": "^3.24.3"
   },
   "devDependencies": {
+    "@types/express": "^5.0.0",
     "@types/node": "^20.17.30",
     "@types/ws": "^8.5.14",
     "tsx": "^4.19.3",

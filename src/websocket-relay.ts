@@ -15,6 +15,18 @@ export class WebSocketRelay {
   constructor(private readonly port: number = 3333) {
     this.wss = new WebSocketServer({ port });
 
+    this.wss.on('error', (err: NodeJS.ErrnoException) => {
+      if (err.code === 'EADDRINUSE') {
+        process.stderr.write(
+          `[web-3d-engine-mcp] WARNING: port ${port} already in use. ` +
+          `Browser bridge unavailable — tools will return "No browser bridge connected".\n` +
+          `Kill the other process or set WS_PORT=<other port> and restart.\n`,
+        );
+      } else {
+        process.stderr.write(`[web-3d-engine-mcp] WebSocket server error: ${err.message}\n`);
+      }
+    });
+
     this.wss.on('connection', (ws) => {
       this.client = ws;
       process.stderr.write(`[web-3d-engine-mcp] Browser bridge connected\n`);
@@ -54,7 +66,9 @@ export class WebSocketRelay {
       });
     });
 
-    process.stderr.write(`[web-3d-engine-mcp] WebSocket relay listening on ws://localhost:${port}\n`);
+    this.wss.on('listening', () => {
+      process.stderr.write(`[web-3d-engine-mcp] WebSocket relay listening on ws://localhost:${port}\n`);
+    });
   }
 
   /**
@@ -85,8 +99,12 @@ export class WebSocketRelay {
     });
   }
 
-  onEngineEvent(listener: EngineEventListener): void {
+  onEngineEvent(listener: EngineEventListener): () => void {
     this.eventListeners.push(listener);
+    return () => {
+      const index = this.eventListeners.indexOf(listener);
+      if (index >= 0) this.eventListeners.splice(index, 1);
+    };
   }
 
   isConnected(): boolean {
